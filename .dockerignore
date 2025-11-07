@@ -1,0 +1,16 @@
+# Prevent copying heavy assets
+backgrounds/
+musics/
+
+# Common Python ignores
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.db
+.env
+.venv/
+venv/
+.idea/
+.vscode/
+*.log

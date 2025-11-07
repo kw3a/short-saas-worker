@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
-from moviepy.editor import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip, ImageClip
+from moviepy import VideoFileClip, AudioFileClip, TextClip, CompositeVideoClip, ImageClip
 import random
 
 def crop_to_9_16(video):
@@ -12,7 +12,7 @@ def crop_to_9_16(video):
     x1 = max(0, x_center - new_width // 2)
     x2 = min(original_width, x_center + new_width // 2)
 
-    cropped_video = video.crop(x1=x1, y1=0, x2=x2, y2=original_height)
+    cropped_video = video.cropped(x1=x1, y1=0, x2=x2, y2=original_height)
     return cropped_video
 
 def buildClip(video_file, audio_file):
@@ -25,9 +25,9 @@ def buildClip(video_file, audio_file):
     superior_limit = video_duration - audio_duration 
     start = random.uniform(0, superior_limit)
     end = start + audio_duration 
-    clip = video.subclip(start, end)
+    clip = video.subclipped(start, end)
     clip = crop_to_9_16(clip)
-    clip = clip.set_audio(audio)
+    clip = clip.with_audio(audio)
     return clip
 
 def add_subtitles_to_video(video, subtitles, output_file):
@@ -98,8 +98,8 @@ def add_subtitles_to_video(video, subtitles, output_file):
 
                 def make_text(fs: int):
                     return TextClip(
-                        title_text,
-                        fontsize=fs,
+                        text=title_text,
+                        font_size=fs,
                         font=font_path,
                         color='black',
                         method='caption',
@@ -113,7 +113,7 @@ def add_subtitles_to_video(video, subtitles, output_file):
                     fs = max(24, int(fs * 0.92))
                     text_clip = make_text(fs)
 
-                text_clip = text_clip.set_duration(duration).set_start(start_time).set_position('center').set_opacity(0.75)
+                text_clip = text_clip.with_duration(duration).with_start(start_time).with_position('center').with_opacity(0.75)
 
                 bg_w, bg_h = text_clip.w + 2 * pad_x, text_clip.h + 2 * pad_y
 
@@ -127,8 +127,8 @@ def add_subtitles_to_video(video, subtitles, output_file):
                 front_fill = (255, 255, 255, 192)  # ~75% transparent white 
                 front_draw.rounded_rectangle([(0, 0), (bg_w - 1, bg_h - 1)], radius=radius, fill=front_fill)
 
-                back_clip = ImageClip(np.array(back_img)).set_duration(duration).set_start(start_time).rotate(-6).set_position('center')
-                front_clip = ImageClip(np.array(front_img)).set_duration(duration).set_start(start_time).rotate(2).set_position('center')
+                back_clip = ImageClip(np.array(back_img)).with_duration(duration).with_start(start_time).rotated(-6).with_position('center')
+                front_clip = ImageClip(np.array(front_img)).with_duration(duration).with_start(start_time).rotated(2).with_position('center')
 
                 bg_clips.append(back_clip)
                 bg_clips.append(front_clip)
@@ -141,14 +141,14 @@ def add_subtitles_to_video(video, subtitles, output_file):
                 wrapped_text = wrap_long_word_to_width(text, max_text_width)
 
                 text_clip = TextClip(
-                    wrapped_text,
-                    fontsize=fontsize,
+                    text=wrapped_text,
+                    font_size=fontsize,
                     font=font_path,
                     color='white',
                     stroke_color='black',
                     stroke_width=stroke_w,
                     method='label'
-                ).set_duration(duration).set_start(start_time).set_position('center')
+                ).with_duration(duration).with_start(start_time).with_position('center')
 
                 # Orange rounded card for script words
                 pad_x, pad_y = 10, 6
@@ -159,7 +159,7 @@ def add_subtitles_to_video(video, subtitles, output_file):
                 fill = (255, 90, 60, 230)
                 draw.rounded_rectangle([(0, 0), (bg_w - 1, bg_h - 1)], radius=radius, fill=fill)
                 bg_array = np.array(img)
-                bg_clip = ImageClip(bg_array).set_duration(duration).set_start(start_time).set_position('center')
+                bg_clip = ImageClip(bg_array).with_duration(duration).with_start(start_time).with_position('center')
 
                 bg_clips.append(bg_clip)
                 text_clips.append(text_clip)

@@ -12,14 +12,16 @@ from r2 import upload_to_S3, upload_thumbnail_to_S3
 from tts_azure import TTSAzure
 from video_edition import buildClip, add_subtitles_to_video
 from comment_screenshot import generate_reddit_title_screenshot, generate_reddit_comment
-from moviepy.editor import AudioFileClip, concatenate_audioclips, VideoFileClip, ImageClip, concatenate_videoclips, CompositeVideoClip
+from moviepy import AudioFileClip, concatenate_audioclips, VideoFileClip, ImageClip, concatenate_videoclips, CompositeVideoClip
 from PIL import Image as PILImage
 from moviepy.audio.AudioClip import CompositeAudioClip
-from moviepy.audio.fx.all import volumex, audio_loop
+from moviepy.audio.fx import AudioLoop, MultiplyVolume
 import numpy as np
 
 from dotenv import load_dotenv
-load_dotenv()
+
+if os.getenv("ENVIRONMENT") != "production":
+    load_dotenv()
 
 app = FastAPI()
 
@@ -261,8 +263,8 @@ def narration_gen_task(id: str, script: str, title: str | None, bg_video: str, v
                 try:
                     with VideoFileClip(out_path) as base_v:
                         wm_clip = _make_watermark_clip(base_v.w, base_v.h)
-                        wm_clip = wm_clip.set_duration(base_v.duration).set_position(( (base_v.w - wm_clip.w)//2, base_v.h - wm_clip.h - 24 ))
-                        watermarked = CompositeVideoClip([base_v, wm_clip]).set_duration(base_v.duration)
+                        wm_clip = wm_clip.with_duration(base_v.duration).with_position(( (base_v.w - wm_clip.w)//2, base_v.h - wm_clip.h - 24 ))
+                        watermarked = CompositeVideoClip([base_v, wm_clip]).with_duration(base_v.duration)
                         out_wm = str(outputs_root / f"{id}_wm.mp4")
                         watermarked.write_videofile(out_wm, fps=30, audio_codec="aac")
                         out_path = out_wm
@@ -306,15 +308,16 @@ def _mix_bg_music(base_audio, duration: float, music: str | None, root_dir: Path
         return base_audio
     try:
         bg_music_clip = AudioFileClip(str(music_file))
-        looped = audio_loop(bg_music_clip, duration=duration)
-        quiet = volumex(looped, 0.25)
+        #looped = AudioLoop(bg_music_clip, duration=duration)
+        #quiet = looped.with_effects([afx.MultiplyVolume(0.25)])
+        quiet = bg_music_clip.with_effects([MultiplyVolume(0.25), AudioLoop(duration=duration)])
         return CompositeAudioClip([base_audio, quiet])
     except Exception as e:
         print(f"[{id}] Failed mixing bg music: {e}. Proceeding without music.")
         return base_audio
 
 def _make_watermark_clip(video_w: int, video_h: int) -> ImageClip:
-    """Create a semi-opaque dark banner watermark with a left play triangle and text 'ViralShort.app'.
+    """Create a semi-opaque dark banner watermark with a left play triangle and text 'viralshort.app'.
     The banner width tightly fits its contents with equal left/right padding to avoid wasted space."""
     # Height relative to video, width computed from content
     banner_h = max(40, int(video_h * 0.07))
@@ -334,7 +337,7 @@ def _make_watermark_clip(video_w: int, video_h: int) -> ImageClip:
             font = ImageFont.truetype("DejaVuSans.ttf", font_size)
         except Exception:
             font = ImageFont.load_default()
-        text = "ViralShort.app"
+        text = "viralshort.app"
         try:
             bbox = tmp_draw.textbbox((0, 0), text, font=font)
             tw = bbox[2] - bbox[0]
@@ -453,12 +456,12 @@ def askreddit_gen_task(id: str, title: str | None, comments: list[str], bg_video
 
                 img_clip = (
                     ImageClip(resized_path)
-                    .set_duration(float(audio_clip.duration))
-                    .set_position("center")
-                    .set_opacity(0.90)
+                    .with_duration(float(audio_clip.duration))
+                    .with_position("center")
+                    .with_opacity(0.90)
                 )
-                comp = CompositeVideoClip([base_clip, img_clip]).set_duration(float(audio_clip.duration))
-                comp = comp.set_audio(audio_clip)
+                comp = CompositeVideoClip([base_clip, img_clip]).with_duration(float(audio_clip.duration))
+                comp = comp.with_audio(audio_clip)
                 return audio_clip, comp
 
             idx = 0
@@ -484,14 +487,14 @@ def askreddit_gen_task(id: str, title: str | None, comments: list[str], bg_video
 
             # Optional background music (shared helper)
             mixed_audio = _mix_bg_music(final_clip.audio, float(final_clip.duration), music, root_dir, id)
-            final_clip = final_clip.set_audio(mixed_audio)
+            final_clip = final_clip.with_audio(mixed_audio)
 
             # Apply watermark for free trial
             if free_trial:
                 try:
-                    wm_clip = _make_watermark_clip(final_clip.w, final_clip.h).set_duration(final_clip.duration)
-                    wm_clip = wm_clip.set_position(((final_clip.w - wm_clip.w)//2, final_clip.h - wm_clip.h - 24))
-                    final_clip = CompositeVideoClip([final_clip, wm_clip]).set_duration(final_clip.duration)
+                    wm_clip = _make_watermark_clip(final_clip.w, final_clip.h).with_duration(final_clip.duration)
+                    wm_clip = wm_clip.with_position(((final_clip.w - wm_clip.w)//2, final_clip.h - wm_clip.h - 24))
+                    final_clip = CompositeVideoClip([final_clip, wm_clip]).with_duration(final_clip.duration)
                 except Exception as e:
                     print(f"[{id}] Failed to apply watermark: {e}. Proceeding without watermark.")
 
