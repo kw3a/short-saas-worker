@@ -1,0 +1,8 @@
+.env
+.venv
+__pycache__
+backgrounds/*
+outputs/*
+musics/*
+*.mp4
+*.wav

@@ -1,0 +1,113 @@
+ask reddit gen
+reddit narration gen
+minecraft narration
+quiz video
+
+statusses in askreddit
+polar packages update
+just a source of truth for both api endpoints
+transition effects for images and subtitles
+terms
+español
+
+reciprocate behavior -> Should I give customers something? -> Refunds? -> Free credits -> Bonus (hidden) credits on purchase
+social proof -> most popular
+social proof should be made using people similar to the customer
+misguided loyalty (unity)
+automatic caption?
+asmr?
+
+FIXES: server components should not suddenly appear and move everything else
+Loading and status displaying for video gen
+Loading instead of a placeholder for log in button
+
+Add UUID for videos
+It works for multiple submissions at the same time?
+
+auth > payment processor > credits balance > usage actions > 
+dynamic views? > video tables > call to video server > video library
+
+refunds
+
+
+api:
+/status
+id
+
+
+/generation/:type
+
+:narration
+id
+bg_video
+music
+title (optional)
+script
+language
+voice
+
+
+:reddit-stories
+id
+bg_video
+music
+title
+comments: [
+{
+    id ?
+    user
+    description
+    likes
+}
+]
+language
+voice
+
+:quiz
+id
+bg_video
+music
+questions: [
+{
+    description
+    options: [
+    {
+        option
+        correct
+    }
+    ]    
+}
+]
+language
+voice
+
+
+
+
+
+
+
+
+
+Needs:
+
+Database: Neon, supabase
+Auth: better auth, clerk, oauth google
+Payment processor: polar, lemon squeezy
+API: Nextjs, Go, Python
+Hosting for API: Hetzner
+Client: React, templates, htmx
+Hosting for client: Hetzner, CF Pages, Netlify
+Hosting for videos: CF R2
+
+
+Después de leer un texto, responder un cuestionario basado en el mismo, para mejorar el recuerdo a largo plazo
+
+
+Microservices approach
+video service -> txt2video, upload to s3 (return the link)?
+web service -> auth, billing, database, upload to s3?
+
+Auth with authorization token in header
+cors check
+origin check
