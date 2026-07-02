@@ -1,0 +1,23 @@
+{
+  "name": "video-test-client",
+  "type": "module",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/node": "^11.0.1",
+    "@aws-sdk/client-s3": "^3.1078.0",
+    "@aws-sdk/s3-request-presigner": "^3.1078.0",
+    "astro": "^7.0.5",
+    "pg": "^8.22.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.9",
+    "@types/pg": "^8.11.10",
+    "typescript": "^6.0.3"
+  }
+}

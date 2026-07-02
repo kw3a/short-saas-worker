@@ -1,0 +1,80 @@
+---
+import Layout from "../layouts/Layout.astro";
+import { BG_VIDEOS, MUSICS, VOICES } from "../lib/constants";
+---
+<Layout title="Narration">
+  <div class="panel">
+    <form id="narration-form">
+      <label for="title">Title (optional, max 100 chars)</label>
+      <input id="title" name="title" type="text" maxlength="100" />
+
+      <label for="script">Script (1-2000 chars)</label>
+      <textarea id="script" name="script" required maxlength="2000"></textarea>
+
+      <label for="bgVideo">Background video</label>
+      <select id="bgVideo" name="bgVideo" required>
+        {BG_VIDEOS.map((v) => <option value={v}>{v}</option>)}
+      </select>
+
+      <label for="voice">Voice</label>
+      <select id="voice" name="voice" required>
+        {VOICES.map((v) => <option value={v}>{v}</option>)}
+      </select>
+
+      <label for="music">Music (optional)</label>
+      <select id="music" name="music">
+        <option value="">none</option>
+        {MUSICS.map((m) => <option value={m}>{m}</option>)}
+      </select>
+
+      <div class="checkbox-row">
+        <input id="freeTrial" name="freeTrial" type="checkbox" />
+        <label for="freeTrial" style="margin:0;">free_trial (adds watermark)</label>
+      </div>
+
+      <button class="primary" type="submit">Submit to go-video</button>
+    </form>
+    <div id="result"></div>
+  </div>
+</Layout>
+
+<script>
+  import { startPolling } from "../scripts/poll";
+
+  const form = document.getElementById("narration-form") as HTMLFormElement;
+  const resultEl = document.getElementById("result") as HTMLElement;
+  const submitBtn = form.querySelector("button[type=submit]") as HTMLButtonElement;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    resultEl.innerHTML = "<p>Submitting…</p>";
+
+    const data = new FormData(form);
+    const payload = {
+      type: "narration",
+      title: data.get("title") || undefined,
+      script: data.get("script"),
+      bgVideo: data.get("bgVideo"),
+      voice: data.get("voice"),
+      music: data.get("music") || undefined,
+      freeTrial: data.get("freeTrial") === "on",
+    };
+
+    try {
+      const res = await fetch("/api/submit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        resultEl.innerHTML = `<p class="error">${body.error ?? "submit failed"}</p>`;
+        return;
+      }
+      startPolling(body.jobId, resultEl);
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+</script>

@@ -1,0 +1,100 @@
+# Production deployment for the go-video render service + its companion
+# tts-service, meant to be pointed at from Dokploy as a "Compose" application
+# (Application → Compose → point at this file's path in the repo).
+#
+# This is NOT the same as go-video/docker-compose.yml, which spins up a local
+# Postgres + MinIO for local development (see go-video/README.md, "Develop").
+# In production:
+#   - DATABASE_URL points at the *real* Postgres the Next.js app uses (the
+#     `video` table — see app/src/db/schema.ts and go-video/db/schema.sql).
+#     Make sure the `progress` column migration has been applied there
+#     (app/src/db/migrations/0002_video_progress.sql) before deploying a
+#     go-video build that writes it.
+#   - R2_* point at real Cloudflare R2 (leave R2_ENDPOINT empty), not a local
+#     MinIO mock.
+#   - tts-service is only called by go-video over the internal compose
+#     network (http://tts-service:3001) — it never needs a public domain.
+#
+# Environment variables below are expected to be configured in Dokploy's
+# "Environment" panel for this compose project (it writes them to a .env used
+# for the ${VAR} substitution here) rather than hardcoded in this file.
+#
+# Networking / domains:
+#   Dokploy proxies public traffic through a shared Traefik instance attached
+#   to the external `dokploy-network`. To give go-video a public domain
+#   (so the Next.js app's VIDEO_SERVER_URL can reach it), attach the service
+#   to `dokploy-network` (below) and add the domain via the Dokploy UI
+#   (Application → Domains → port 3000) — Dokploy injects the Traefik labels
+#   itself, no need to hand-write them here. tts-service intentionally is NOT
+#   attached to dokploy-network / given a domain, since it's internal-only.
+
+services:
+  tts-service:
+    build:
+      context: ./tts-service
+    restart: unless-stopped
+    environment:
+      AZURE_KEY: ${AZURE_KEY}
+      AZURE_REGION: ${AZURE_REGION}
+      # Must match go-video's TTS_SECRET below — shared secret between the two.
+      TTS_SECRET: ${TTS_SECRET}
+    networks:
+      - internal
+
+  go-video:
+    build:
+      context: ./go-video
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      PORT: 3000
+      # Bearer secret the Next.js app must send on /generation/* requests.
+      VIDEO_SERVER_SECRET: ${VIDEO_SERVER_SECRET}
+      RENDER_WORKERS: ${RENDER_WORKERS:-2}
+      # Baked into the image (see go-video/Dockerfile) — backgrounds/ and
+      # musics/ subdirectories are mounted in via the volumes below.
+      ASSETS_DIR: /app/assets
+
+      # Same Postgres the Next.js app uses.
+      DATABASE_URL: ${DATABASE_URL}
+
+      # Real Cloudflare R2 — leave R2_ENDPOINT unset/empty here so go-video
+      # derives https://<account>.r2.cloudflarestorage.com itself. Only set
+      # it if pointing at some other S3-compatible endpoint.
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY}
+      R2_BUCKET_NAME: ${R2_BUCKET_NAME:-shorts}
+      R2_ENDPOINT: ${R2_ENDPOINT:-}
+
+      # Internal compose network address — override only if tts-service is
+      # deployed elsewhere.
+      TTS_BASE_URL: ${TTS_BASE_URL:-http://tts-service:3001}
+      TTS_SECRET: ${TTS_SECRET}
+    volumes:
+      # Populate these once (e.g. `docker cp` the mp4s/mp3s in, or bind-mount
+      # a host path via Dokploy's Volumes UI that you've already populated).
+      # Valid names are the enums validated in
+      # go-video/internal/httpapi/validate.go (gtav, minecraft, roblox,
+      # subways, satisfying / elevator, else, hiddenagenda, nocturne,
+      # sneakysnitch, tiptoes, wiener, waltz).
+      - go-video-backgrounds:/app/assets/backgrounds
+      - go-video-musics:/app/assets/musics
+    depends_on:
+      - tts-service
+    networks:
+      - internal
+      - dokploy-network
+    # Uncomment to reach go-video directly by server IP:port instead of (or in
+    # addition to) a Dokploy-managed domain:
+    # ports:
+    #   - "3000:3000"
+
+networks:
+  internal:
+  dokploy-network:
+    external: true
+
+volumes:
+  go-video-backgrounds:
+  go-video-musics:

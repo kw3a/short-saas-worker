@@ -1,0 +1,53 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: govideo
+      POSTGRES_PASSWORD: govideo
+      POSTGRES_DB: govideo
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U govideo -d govideo"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # S3-compatible mock for R2. internal/storage points at it via R2_ENDPOINT.
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${R2_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${R2_SECRET_ACCESS_KEY}
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # One-shot: creates R2_BUCKET_NAME on the minio service, then exits.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${R2_ACCESS_KEY_ID} ${R2_SECRET_ACCESS_KEY} &&
+      mc mb --ignore-existing local/${R2_BUCKET_NAME:-shorts}
+      "
+
+volumes:
+  db-data:
+  minio-data:
