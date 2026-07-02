@@ -14,6 +14,10 @@
 #     MinIO mock.
 #   - tts-service is only called by go-video over the internal compose
 #     network (http://tts-service:3001) — it never needs a public domain.
+#   - go-video's backgrounds/musics are bind-mounted from /data/backgrounds
+#     and /data/musics on the Dokploy host (not baked into the image, not in
+#     git — they're large binaries). Populate them once via
+#     ./deploy-upload-assets.sh, and again whenever assets change.
 #
 # Environment variables below are expected to be configured in Dokploy's
 # "Environment" panel for this compose project (it writes them to a .env used
@@ -72,14 +76,13 @@ services:
       TTS_BASE_URL: ${TTS_BASE_URL:-http://tts-service:3001}
       TTS_SECRET: ${TTS_SECRET}
     volumes:
-      # Populate these once (e.g. `docker cp` the mp4s/mp3s in, or bind-mount
-      # a host path via Dokploy's Volumes UI that you've already populated).
-      # Valid names are the enums validated in
-      # go-video/internal/httpapi/validate.go (gtav, minecraft, roblox,
-      # subways, satisfying / elevator, else, hiddenagenda, nocturne,
-      # sneakysnitch, tiptoes, wiener, waltz).
-      - go-video-backgrounds:/app/assets/backgrounds
-      - go-video-musics:/app/assets/musics
+      # Bind mounts (not named volumes) so populating them is a plain
+      # rsync/scp to the host — see ../deploy-upload-assets.sh. Valid names
+      # are the enums validated in go-video/internal/httpapi/validate.go
+      # (gtav, minecraft, roblox, subways, satisfying / elevator, else,
+      # hiddenagenda, nocturne, sneakysnitch, tiptoes, wiener, waltz).
+      - /data/backgrounds:/app/assets/backgrounds
+      - /data/musics:/app/assets/musics
     depends_on:
       - tts-service
     networks:
@@ -94,7 +97,3 @@ networks:
   internal:
   dokploy-network:
     external: true
-
-volumes:
-  go-video-backgrounds:
-  go-video-musics:
